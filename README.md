@@ -1,2 +1,2 @@
-# sqlite-bucket
- Self-contained sql-pkg-based sqlite for python
+# sqbucket
+ Self-contained sqlpkg-based sqlite for python

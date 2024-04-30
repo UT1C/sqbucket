@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "sqbucket-example"
+version = "0.0.1"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.plugins."sqbucket"]
+pkgs = "sqbucket_example.meta:SQLITE_PKGS"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
