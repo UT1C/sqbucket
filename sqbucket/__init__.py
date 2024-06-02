@@ -20,7 +20,7 @@ SQLPKG_TARGET = "nalgeon/sqlpkg-cli/releases/latest"
 def download_archive(
     url: str,
     format: Literal["zip", "tar", "gztar", "bztar", "xztar"],
-    extract_dir: os.PathLike
+    extract_dir: os.PathLike[str]
 ):
     with tempfile.NamedTemporaryFile("wb", delete=False) as file:
         with requests.get(url, stream=True) as r:
@@ -35,7 +35,12 @@ def download_archive(
         os.unlink(file.name)
 
 
-if cfg.external_sqlite is False and not os.listdir(cfg.sqlite_path.parent):
+# download own copy of sqlite
+# TODO: check dir integrity, not just *empty*
+if (
+    cfg.external_sqlite is False
+    and next(cfg.sqlite_path.parent.iterdir(), None) is None
+):
     # TODO: make some logs, progressbars etc
     match platform:
         case "win":
@@ -62,7 +67,11 @@ if cfg.external_sqlite is False and not os.listdir(cfg.sqlite_path.parent):
 
     download_archive(SQLITE_URL + route, "zip", cfg.sqlite_path.parent)
 
-if isinstance(cfg.external_sqlpkg, bool) and not os.listdir(cfg.sqlite_path.parent):
+# TODO: check dir integrity, not just *empty*
+if (
+    isinstance(cfg.external_sqlpkg, bool)
+    and next(cfg.sqlpkg_executable.parent.iterdir(), None) is None
+):
     match platform:
         case "win":
             platform_ = "windows"
@@ -86,11 +95,12 @@ if isinstance(cfg.external_sqlpkg, bool) and not os.listdir(cfg.sqlite_path.pare
         data = json.loads(r.text)
         for asset in data["assets"]:
             if ver in asset["name"]:
+                url = asset["browser_download_url"]
                 break
         else:
             raise AssertionError()
 
-    download_archive(asset["browser_download_url"], "gztar", cfg.sqlpkg_executable.parent)
+    download_archive(url, "gztar", cfg.sqlpkg_executable.parent)
 
 # TODO: maybe check for some conflicts?
 packages: set[str] = set()
