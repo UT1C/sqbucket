@@ -1,6 +1,6 @@
 from typing import Sequence, Literal
 from importlib.metadata import entry_points
-from platform import machine
+from platform import machine as get_machine
 import requests
 import tempfile
 import shutil
@@ -9,7 +9,7 @@ import io
 import csv
 import os
 
-from .config import cfg, platform
+from .config import cfg, meta
 
 CHUNK_SIZE = 8 * 1024 * 1024
 SQLITE_URL = "https://www.sqlite.org/"
@@ -42,7 +42,7 @@ if (
     and next(cfg.sqlite_path.parent.iterdir(), None) is None
 ):
     # TODO: make some logs, progressbars etc
-    match platform:
+    match meta.platform:
         case "win":
             # TODO: check if x64 sqlite works with x32 python on windows
             ver = "dll-win-x86"
@@ -72,24 +72,24 @@ if (
     isinstance(cfg.external_sqlpkg, bool)
     and next(cfg.sqlpkg_executable.parent.iterdir(), None) is None
 ):
-    match platform:
+    match meta.platform:
         case "win":
-            platform_ = "windows"
+            platform = "windows"
         case "unix":
-            platform_ = "linux"
+            platform = "linux"
         case "macos":
-            platform_ = "darwin"
+            platform = "darwin"
         case _:
             raise AssertionError()
-    machine_ = machine().lower()
-    match machine_:
+    machine = get_machine().lower()
+    match machine:
         case "i386":
-            machine_ = "386"
+            machine = "386"
         case "amd64" | "arm64":
             ...
         case _:
             raise AssertionError()
-    ver = f"{platform_}_{machine_}"
+    ver = f"{platform}_{machine}"
 
     with requests.get(f"https://api.github.com/repos/{SQLPKG_TARGET}") as r:
         data = json.loads(r.text)

@@ -8,10 +8,8 @@ import shutil
 import logging
 import ctypes.util
 
-platform: Literal["win", "unix", "macos"]
-storage_path: Path
-cfg_path: Path
 cfg: "Config"
+meta: "Meta"
 
 logger = logging.getLogger("sqbucket")
 
@@ -33,7 +31,7 @@ class Config:
                 path = ctypes.util.find_library("sqlite3")
                 assert path is not None, "no external sqlite found"
                 return Path(path)
-        path = (storage_path / "lib").resolve()
+        path = (meta.storage_path / "lib").resolve()
         path.mkdir(parents=True, exist_ok=True)
         return path / "sqlite3"
 
@@ -48,7 +46,7 @@ class Config:
                     return Path(path)
                 logger.info("no external sqlpkg found, fallback to internal")
 
-        path = (storage_path / "sqlpkg").resolve()
+        path = (meta.storage_path / "sqlpkg").resolve()
         path.mkdir(parents=True, exist_ok=True)
         return path / "sqlpkg"
 
@@ -62,31 +60,46 @@ class Config:
             path = Path(self.external_sqlpkg).resolve()
             assert path.name == ".sqlpkg", "invalid package storage path"
         elif self.external_pkg_storage is False:
-            path = storage_path / ".sqlpkg"
+            path = meta.storage_path / ".sqlpkg"
 
         path = path.resolve()
         path.mkdir(parents=True, exist_ok=True)
         return path
 
 
+class Meta:
+    platform: Literal["win", "unix", "macos"]
+    storage_path: Path
+
+    def __init__(self) -> None:
+        platform = sys.platform.lower()
+        if platform == "win32":
+            self.platform = "win"
+            self.storage_path = Path.home() / ".sqbucket"
+        else:
+            if platform == "darwin":
+                self.platform = "macos"
+            else:
+                self.platform = "unix"
+            self.storage_path = Path.home() / ".local" / "sqbucket"
+
+        self.validate()
+
+    @functools.cached_property
+    def cfg_path(self) -> Path:
+        return self.storage_path / "config.json"
+
+    def validate(self):
+        self.storage_path.mkdir(parents=True, exist_ok=True)
+        self.cfg_path.touch(exist_ok=True)
+
+
 def init():
-    global platform, storage_path, cfg_path, cfg
+    global cfg, meta
 
-    _platform = sys.platform.lower()
-    if _platform == "win32":
-        platform = "win"
-        storage_path = Path.home() / ".sqbucket"
-    elif _platform == "darwin":
-        platform = "macos"
-    else:
-        platform = "unix"
-        storage_path = Path.home() / ".local" / "sqbucket"
+    meta = Meta()
 
-    storage_path.mkdir(parents=True, exist_ok=True)
-    cfg_path = storage_path / "config.json"
-    cfg_path.touch(exist_ok=True)
-
-    with open(cfg_path, "r") as file:
+    with open(meta.cfg_path, "r") as file:
         try:
             data = json.load(file)
         except json.JSONDecodeError:
@@ -95,7 +108,7 @@ def init():
         cfg = Config(**data)
     else:
         cfg = Config()
-        with open(cfg_path, "w") as file:
+        with open(meta.cfg_path, "w") as file:
             json.dump(asdict(cfg), file, indent=4)
 
 
